@@ -1,14 +1,16 @@
 import { getDB, generateId, getMediaDir } from './db.js';
 import { existsSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { join, normalize } from 'path';
+import { sanitizeTag } from './security.js';
 
 export const Person = {
   create({ name, birthDate, deathDate, bio, photoPath }) {
     const db = getDB();
     const id = generateId();
+    const safeName = String(name || 'Unknown').slice(0, 256);
     db.prepare(`INSERT INTO people (id, name, birth_date, death_date, bio, photo_path)
-      VALUES (?, ?, ?, ?, ?, ?)`).run(id, name, birthDate || null, deathDate || null, bio || null, photoPath || null);
-    return { id, name, birthDate, deathDate, bio, photoPath };
+      VALUES (?, ?, ?, ?, ?, ?)`).run(id, safeName, birthDate || null, deathDate || null, (bio || null), photoPath || null);
+    return { id, name: safeName, birthDate, deathDate, bio, photoPath };
   },
 
   getAll() {
@@ -18,6 +20,7 @@ export const Person = {
 
   getById(id) {
     const db = getDB();
+    if (!isValidId(id)) return null;
     const p = db.prepare('SELECT * FROM people WHERE id = ?').get(id);
     if (p && p.photo_path) {
       p.photo_url = `/media/${p.photo_path}`;
@@ -27,14 +30,20 @@ export const Person = {
 
   update(id, fields) {
     const db = getDB();
+    if (!isValidId(id)) return null;
     const allowed = ['name', 'birth_date', 'death_date', 'bio', 'photo_path'];
     const updates = [];
     const values = [];
     for (const [key, val] of Object.entries(fields)) {
       const dbKey = key.replace(/[A-Z]/g, c => '_' + c.toLowerCase());
       if (allowed.includes(dbKey)) {
-        updates.push(`${dbKey} = ?`);
-        values.push(val ?? null);
+        if (dbKey === 'name' && val) {
+          updates.push(`${dbKey} = ?`);
+          values.push(String(val).slice(0, 256));
+        } else {
+          updates.push(`${dbKey} = ?`);
+          values.push(val ?? null);
+        }
       }
     }
     if (updates.length === 0) return null;
@@ -46,11 +55,16 @@ export const Person = {
 
   delete(id) {
     const db = getDB();
+    if (!isValidId(id)) return;
     db.prepare('DELETE FROM people WHERE id = ?').run(id);
   },
 
   addRelationship(personAId, personBId, type) {
     const db = getDB();
+    if (!isValidId(personAId) || !isValidId(personBId)) throw new Error('Invalid person ID');
+    if (!['parent', 'child', 'sibling', 'partner', 'grandparent', 'grandchild', 'cousin', 'other'].includes(type)) {
+      throw new Error('Invalid relationship type');
+    }
     const relationId = generateId();
     db.prepare('INSERT INTO relationships (id, person_a_id, person_b_id, type) VALUES (?, ?, ?, ?)')
       .run(relationId, personAId, personBId, type);
@@ -59,6 +73,7 @@ export const Person = {
 
   getRelationships(personId) {
     const db = getDB();
+    if (!isValidId(personId)) return [];
     return db.prepare(`SELECT r.*,
       CASE WHEN r.person_a_id = ? THEN r.person_b_id ELSE r.person_a_id END AS related_person_id,
       (SELECT name FROM people WHERE id = CASE WHEN r.person_a_id = ? THEN r.person_b_id ELSE r.person_a_id END) AS related_person_name
@@ -67,34 +82,38 @@ export const Person = {
   },
 
   removeRelationship(relId) {
+    if (!isValidId(relId)) return;
     getDB().prepare('DELETE FROM relationships WHERE id = ?').run(relId);
   },
 
   getMedia(personId) {
+    if (!isValidId(personId)) return [];
     return getDB().prepare('SELECT * FROM media WHERE person_id = ? ORDER BY created_at DESC').all(personId);
   },
 
   search(query) {
     const db = getDB();
-    if (!query || !query.trim()) return this.getAll();
+    const q = String(query || '').slice(0, 200);
+    if (!q.trim()) return this.getAll();
     try {
       return db.prepare(`SELECT p.* FROM people_fts f
         JOIN people p ON p.rowid = f.rowid
-        WHERE people_fts MATCH ? ORDER BY rank LIMIT 50`).all(query);
+        WHERE people_fts MATCH ? ORDER BY rank LIMIT 50`).all(q);
     } catch {
-      return db.prepare('SELECT * FROM people WHERE name LIKE ? ORDER BY name ASC').all(`%${query}%`);
+      return db.prepare('SELECT * FROM people WHERE name LIKE ? ORDER BY name ASC').all(`%${q}%`);
     }
   },
 
   searchFTS(query) {
     const db = getDB();
-    if (!query || !query.trim()) return [];
+    const q = String(query || '').slice(0, 200);
+    if (!q.trim()) return [];
     try {
       return db.prepare(`SELECT p.*, snippet(people_fts, 1, '<mark>', '</mark>', '...', 32) AS snippet
         FROM people_fts f JOIN people p ON p.rowid = f.rowid
-        WHERE people_fts MATCH ? ORDER BY rank LIMIT 50`).all(query);
+        WHERE people_fts MATCH ? ORDER BY rank LIMIT 50`).all(q);
     } catch {
-      return this.search(query);
+      return this.search(q);
     }
   },
 
@@ -118,22 +137,28 @@ export const Story = {
   create({ title, content, storyDate, personIds, tagNames }) {
     const db = getDB();
     const id = generateId();
+    const safeTitle = String(title || 'Untitled').slice(0, 512);
+    const safeContent = String(content || '').slice(0, 500000);
     db.prepare('INSERT INTO stories (id, title, content, story_date) VALUES (?, ?, ?, ?)')
-      .run(id, title, content, storyDate || null);
+      .run(id, safeTitle, safeContent, storyDate || null);
 
     if (personIds && personIds.length > 0) {
       const insert = db.prepare('INSERT OR IGNORE INTO story_people (story_id, person_id) VALUES (?, ?)');
-      for (const pid of personIds) insert.run(id, pid);
+      for (const pid of personIds) {
+        if (isValidId(pid)) insert.run(id, pid);
+      }
     }
 
     if (tagNames && tagNames.length > 0) {
       const insertTag = db.prepare('INSERT OR IGNORE INTO tags (id, name) VALUES (?, ?)');
       const insertLink = db.prepare('INSERT OR IGNORE INTO story_tags (story_id, tag_id) VALUES (?, ?)');
       for (const name of tagNames) {
+        const safeTag = sanitizeTag(name);
+        if (!safeTag) continue;
         const tagId = generateId();
-        insertTag.run(tagId, name.toLowerCase().trim());
-        const existing = db.prepare('SELECT id FROM tags WHERE name = ?').get(name.toLowerCase().trim());
-        insertLink.run(id, existing.id);
+        insertTag.run(tagId, safeTag);
+        const existing = db.prepare('SELECT id FROM tags WHERE name = ?').get(safeTag);
+        if (existing) insertLink.run(id, existing.id);
       }
     }
 
@@ -141,6 +166,7 @@ export const Story = {
   },
 
   getById(id) {
+    if (!isValidId(id)) return null;
     const db = getDB();
     const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(id);
     if (!story) return null;
@@ -161,14 +187,23 @@ export const Story = {
 
   update(id, fields) {
     const db = getDB();
+    if (!isValidId(id)) return null;
     const allowed = ['title', 'content', 'story_date'];
     const updates = [];
     const values = [];
     for (const [key, val] of Object.entries(fields)) {
       const dbKey = key.replace(/[A-Z]/g, c => '_' + c.toLowerCase());
       if (allowed.includes(dbKey)) {
-        updates.push(`${dbKey} = ?`);
-        values.push(val ?? null);
+        if (dbKey === 'title') {
+          updates.push(`${dbKey} = ?`);
+          values.push(String(val || '').slice(0, 512));
+        } else if (dbKey === 'content') {
+          updates.push(`${dbKey} = ?`);
+          values.push(String(val || '').slice(0, 500000));
+        } else {
+          updates.push(`${dbKey} = ?`);
+          values.push(val ?? null);
+        }
       }
     }
     if (updates.length === 0) return null;
@@ -179,43 +214,49 @@ export const Story = {
     if (fields.personIds) {
       db.prepare('DELETE FROM story_people WHERE story_id = ?').run(id);
       const insert = db.prepare('INSERT OR IGNORE INTO story_people (story_id, person_id) VALUES (?, ?)');
-      for (const pid of fields.personIds) insert.run(id, pid);
+      for (const pid of fields.personIds) {
+        if (isValidId(pid)) insert.run(id, pid);
+      }
     }
 
     return this.getById(id);
   },
 
   delete(id) {
+    if (!isValidId(id)) return;
     getDB().prepare('DELETE FROM stories WHERE id = ?').run(id);
   },
 
   search(query) {
     const db = getDB();
-    if (!query || !query.trim()) return this.getAll();
+    const q = String(query || '').slice(0, 200);
+    if (!q.trim()) return this.getAll();
     try {
       return db.prepare(`SELECT s.* FROM stories_fts f
         JOIN stories s ON s.rowid = f.rowid
-        WHERE stories_fts MATCH ? ORDER BY rank LIMIT 50`).all(query);
+        WHERE stories_fts MATCH ? ORDER BY rank LIMIT 50`).all(q);
     } catch {
       return db.prepare('SELECT * FROM stories WHERE title LIKE ? OR content LIKE ? ORDER BY COALESCE(story_date, created_at) DESC')
-        .all(`%${query}%`, `%${query}%`);
+        .all(`%${q}%`, `%${q}%`);
     }
   },
 
   searchFTS(query) {
     const db = getDB();
-    if (!query || !query.trim()) return [];
+    const q = String(query || '').slice(0, 200);
+    if (!q.trim()) return [];
     try {
       return db.prepare(`SELECT s.*, snippet(stories_fts, 2, '<mark>', '</mark>', '...', 32) AS snippet
         FROM stories_fts f JOIN stories s ON s.rowid = f.rowid
-        WHERE stories_fts MATCH ? ORDER BY rank LIMIT 50`).all(query);
+        WHERE stories_fts MATCH ? ORDER BY rank LIMIT 50`).all(q);
     } catch {
-      return this.search(query);
+      return this.search(q);
     }
   },
 
   getByPersonId(personId) {
     const db = getDB();
+    if (!isValidId(personId)) return [];
     return db.prepare(`SELECT s.* FROM stories s
       JOIN story_people sp ON sp.story_id = s.id WHERE sp.person_id = ?
       ORDER BY COALESCE(s.story_date, s.created_at) DESC`).all(personId);
@@ -234,6 +275,7 @@ export const Story = {
   },
 
   getMedia(storyId) {
+    if (!isValidId(storyId)) return [];
     return getDB().prepare('SELECT * FROM media WHERE story_id = ? ORDER BY created_at DESC').all(storyId);
   },
 
@@ -251,13 +293,17 @@ export const Media = {
   create({ personId, storyId, filePath, originalName, mimeType, fileSize, type, caption }) {
     const db = getDB();
     const id = generateId();
+    const safeFilePath = sanitizeMediaPath(filePath);
+    if (!safeFilePath) throw new Error('Invalid file path');
     const mediaType = type || (mimeType ? mimeType.split('/')[0].replace('application', 'document') : 'document');
+    if (!['image', 'audio', 'video', 'document'].includes(mediaType)) throw new Error('Invalid media type');
     db.prepare(`INSERT INTO media (id, person_id, story_id, file_path, original_name, mime_type, file_size, type, caption)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, personId || null, storyId || null, filePath, originalName || null, mimeType || null, fileSize || null, mediaType, caption || null);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, personId || null, storyId || null, safeFilePath, String(originalName || '').slice(0, 255), mimeType || null, fileSize || null, mediaType, caption || null);
     return this.getById(id);
   },
 
   getById(id) {
+    if (!isValidId(id)) return null;
     return getDB().prepare('SELECT * FROM media WHERE id = ?').get(id);
   },
 
@@ -266,10 +312,12 @@ export const Media = {
   },
 
   getByPerson(personId) {
+    if (!isValidId(personId)) return [];
     return getDB().prepare('SELECT * FROM media WHERE person_id = ? ORDER BY created_at DESC').all(personId);
   },
 
   getByStory(storyId) {
+    if (!isValidId(storyId)) return [];
     return getDB().prepare('SELECT * FROM media WHERE story_id = ? ORDER BY created_at DESC').all(storyId);
   },
 
@@ -279,11 +327,18 @@ export const Media = {
 
   delete(id) {
     const db = getDB();
+    if (!isValidId(id)) return;
     const media = db.prepare('SELECT * FROM media WHERE id = ?').get(id);
     if (media) {
       try {
-        const filePath = join(getMediaDir(), media.file_path);
-        if (existsSync(filePath)) unlinkSync(filePath);
+        const safePath = sanitizeMediaPath(media.file_path);
+        if (safePath) {
+          const filePath = join(getMediaDir(), safePath);
+          const normalized = normalize(filePath);
+          if (normalized.startsWith(normalize(getMediaDir()))) {
+            if (existsSync(normalized)) unlinkSync(normalized);
+          }
+        }
       } catch (e) { /* file may not exist */ }
     }
     db.prepare('DELETE FROM media WHERE id = ?').run(id);
@@ -291,13 +346,19 @@ export const Media = {
 
   update(id, fields) {
     const db = getDB();
+    if (!isValidId(id)) return null;
     const allowed = ['caption', 'person_id', 'story_id'];
     const updates = [];
     const values = [];
     for (const [key, val] of Object.entries(fields)) {
       if (allowed.includes(key)) {
-        updates.push(`${key} = ?`);
-        values.push(val ?? null);
+        if (key === 'caption') {
+          updates.push(`${key} = ?`);
+          values.push(String(val || '').slice(0, 2000));
+        } else {
+          updates.push(`${key} = ?`);
+          values.push(val ?? null);
+        }
       }
     }
     if (updates.length === 0) return null;
@@ -322,7 +383,7 @@ export const Tag = {
   },
 
   getByName(name) {
-    return getDB().prepare('SELECT * FROM tags WHERE name = ?').get(name.toLowerCase().trim());
+    return getDB().prepare('SELECT * FROM tags WHERE name = ?').get(sanitizeTag(name));
   },
 
   getStats() {
@@ -338,6 +399,13 @@ export function importFromJSON(jsonData) {
   const db = getDB();
   const result = { people: { created: 0, skipped: 0 }, stories: { created: 0, skipped: 0 } };
 
+  if (!jsonData || typeof jsonData !== 'object') {
+    throw new Error('Invalid import data');
+  }
+
+  const people = Array.isArray(jsonData.people) ? jsonData.people.slice(0, 1000) : [];
+  const stories = Array.isArray(jsonData.stories) ? jsonData.stories.slice(0, 1000) : [];
+
   const findExistingPerson = db.prepare('SELECT id FROM people WHERE name = ? AND (birth_date = ? OR (birth_date IS NULL AND ? IS NULL))');
 
   const insertPerson = db.prepare(`INSERT INTO people (id, name, birth_date, death_date, bio, photo_path, created_at, updated_at)
@@ -352,48 +420,66 @@ export function importFromJSON(jsonData) {
 
   const peopleMap = {};
 
-  if (jsonData.people) {
-    for (const p of jsonData.people) {
-      const existing = findExistingPerson.get(p.name, p.birth_date || null, p.birth_date || null);
-      if (existing) {
-        upsertPerson.run(p.death_date || null, p.bio || null, p.photo_path || null, existing.id);
-        peopleMap[p.id || p.name] = existing.id;
-        result.people.skipped++;
-      } else {
-        const id = p.id || generateId();
-        insertPerson.run(id, p.name, p.birth_date || null, p.death_date || null, p.bio || null, p.photo_path || null, p.created_at || new Date().toISOString(), p.updated_at || new Date().toISOString());
-        peopleMap[p.id || p.name] = id;
-        result.people.created++;
-      }
+  for (const p of people) {
+    if (!p || typeof p !== 'object') continue;
+    const name = String(p.name || '').slice(0, 256);
+    if (!name) continue;
+    const birthDate = p.birth_date ? String(p.birth_date).slice(0, 20) : null;
+    const existing = findExistingPerson.get(name, birthDate, birthDate);
+    if (existing) {
+      upsertPerson.run(p.death_date ? String(p.death_date).slice(0, 20) : null, p.bio ? String(p.bio).slice(0, 50000) : null, p.photo_path ? String(p.photo_path).slice(0, 512) : null, existing.id);
+      peopleMap[p.id || name] = existing.id;
+      result.people.skipped++;
+    } else {
+      const id = p.id || generateId();
+      insertPerson.run(id, name, birthDate, p.death_date ? String(p.death_date).slice(0, 20) : null, p.bio ? String(p.bio).slice(0, 50000) : null, p.photo_path ? String(p.photo_path).slice(0, 512) : null, p.created_at || new Date().toISOString(), p.updated_at || new Date().toISOString());
+      peopleMap[p.id || name] = id;
+      result.people.created++;
     }
   }
 
-  if (jsonData.stories) {
-    for (const s of jsonData.stories) {
-      const storyId = s.id || generateId();
-      insertStory.run(storyId, s.title, s.content, s.story_date || null, s.created_at || new Date().toISOString(), s.updated_at || new Date().toISOString());
+  for (const s of stories) {
+    if (!s || typeof s !== 'object') continue;
+    const storyId = s.id || generateId();
+    const safeTitle = String(s.title || 'Untitled').slice(0, 512);
+    const safeContent = String(s.content || '').slice(0, 500000);
+    insertStory.run(storyId, safeTitle, safeContent, s.story_date ? String(s.story_date).slice(0, 20) : null, s.created_at || new Date().toISOString(), s.updated_at || new Date().toISOString());
 
-      if (s.people) {
-        for (const sp of s.people) {
-          const pid = sp.id || peopleMap[sp.name];
-          if (pid) insertStoryPerson.run(storyId, pid);
-        }
+    if (Array.isArray(s.people)) {
+      for (const sp of s.people) {
+        if (!sp || typeof sp !== 'object') continue;
+        const pid = sp.id || peopleMap[sp.name];
+        if (pid && isValidId(pid)) insertStoryPerson.run(storyId, pid);
       }
-
-      if (s.tags) {
-        for (const tagName of s.tags) {
-          const tagId = generateId();
-          insertTag.run(tagId, tagName.toLowerCase().trim());
-          const existing = db.prepare('SELECT id FROM tags WHERE name = ?').get(tagName.toLowerCase().trim());
-          if (existing) insertStoryTag.run(storyId, existing.id);
-        }
-      }
-
-      result.stories.created++;
     }
+
+    if (Array.isArray(s.tags)) {
+      for (const tagName of s.tags) {
+        const safeTag = sanitizeTag(tagName);
+        if (!safeTag) continue;
+        const tagId = generateId();
+        insertTag.run(tagId, safeTag);
+        const existing = db.prepare('SELECT id FROM tags WHERE name = ?').get(safeTag);
+        if (existing) insertStoryTag.run(storyId, existing.id);
+      }
+    }
+
+    result.stories.created++;
   }
 
   return result;
+}
+
+function isValidId(id) {
+  return id && typeof id === 'string' && id.length <= 64 && /^[a-f0-9-]+$/i.test(id);
+}
+
+function sanitizeMediaPath(filePath) {
+  if (!filePath || typeof filePath !== 'string') return null;
+  const cleaned = filePath.replace(/\.\.\//g, '').replace(/\.\.\\/g, '').replace(/~/g, '');
+  if (cleaned !== filePath) return null;
+  if (cleaned.startsWith('/') || cleaned.startsWith('\\')) return null;
+  return cleaned.slice(0, 512);
 }
 
 export const STORY_PROMPTS = [

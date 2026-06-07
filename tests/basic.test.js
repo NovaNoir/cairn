@@ -5,6 +5,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { getDB, closeDB, generateId, rebuildFTS } from '../src/core/db.js';
 import { Person, Story, Media, Tag, importFromJSON, STORY_PROMPTS, getPromptsForCategory, getRandomPrompts } from '../src/core/models.js';
+import { validatePersonInput, validateStoryInput, sanitizeDate, sanitizeTag, sanitizeFilePath, isAllowedMimeType, isAllowedExtension, sanitizeHtml, sanitizeMarkdownHtml, FIELD_LIMITS } from '../src/core/security.js';
 
 let tmpDir;
 
@@ -213,5 +214,92 @@ describe('Cairn Core', () => {
   it('should return random prompts', () => {
     const random = getRandomPrompts(3);
     assert.equal(random.length, 3);
+  });
+
+  // Security tests
+  it('should sanitize person input with length limits', () => {
+    const longName = 'A'.repeat(1000);
+    const result = validatePersonInput({ name: longName });
+    assert.ok(result.name.length <= FIELD_LIMITS.name.maxLength);
+    assert.equal(result.name.length, 256);
+  });
+
+  it('should sanitize story input', () => {
+    const result = validateStoryInput({ title: '<b>Title</b>', content: 'Safe content', tagNames: ['  GOOD  ', '', null, 'bad!@#$  '] });
+    assert.ok(result.title);
+    assert.ok(result.tagNames.length >= 1);
+    assert.ok(result.tagNames.every(t => /^[a-z0-9_\-\s]+$/.test(t)));
+  });
+
+  it('should validate dates', () => {
+    assert.equal(sanitizeDate('2024-01-15'), '2024-01-15');
+    assert.equal(sanitizeDate(null), null);
+    assert.equal(sanitizeDate('not-a-date'), null);
+  });
+
+  it('should sanitize tags', () => {
+    assert.equal(sanitizeTag('  Hello World!  '), 'hello world');
+    assert.equal(sanitizeTag(''), null);
+    assert.equal(sanitizeTag('<script>alert(1)</script>'), 'scriptalert1script');
+  });
+
+  it('should reject path traversal in file paths', () => {
+    assert.equal(sanitizeFilePath('../../../etc/passwd'), null);
+    assert.equal(sanitizeFilePath('~/.ssh/id_rsa'), null);
+    assert.equal(sanitizeFilePath('normal-photo.jpg'), 'normal-photo.jpg');
+  });
+
+  it('should validate mime types', () => {
+    assert.ok(isAllowedMimeType('image/jpeg'));
+    assert.ok(isAllowedMimeType('audio/webm'));
+    assert.ok(!isAllowedMimeType('application/x-shockwave-flash'));
+    assert.ok(!isAllowedMimeType('text/html'));
+  });
+
+  it('should validate file extensions', () => {
+    assert.ok(isAllowedExtension('photo.jpg'));
+    assert.ok(isAllowedExtension('story.mp3'));
+    assert.ok(!isAllowedExtension('malware.exe'));
+    assert.ok(!isAllowedExtension('script.js'));
+  });
+
+  it('should sanitize HTML from XSS', () => {
+    const dirty = '<script>alert("xss")</script><p>Safe text</p><img src=x onerror=alert(1)>';
+    const clean = sanitizeHtml(dirty);
+    assert.ok(!clean.includes('<script>'));
+    assert.ok(!clean.includes('onerror'));
+    assert.ok(clean.includes('<p>Safe text</p>'));
+  });
+
+  it('should sanitize markdown HTML from XSS', () => {
+    const dirty = '<script>alert(1)</script><strong>bold</strong><img src=x onerror=alert(1)>';
+    const clean = sanitizeMarkdownHtml(dirty);
+    assert.ok(!clean.includes('<script>'));
+    assert.ok(!clean.includes('onerror'));
+    assert.ok(clean.includes('<strong>bold</strong>'));
+  });
+
+  it('should reject import with invalid data', () => {
+    assert.throws(() => importFromJSON(null), /Invalid import data/);
+    assert.throws(() => importFromJSON('string'), /Invalid import data/);
+  });
+
+  it('should limit import batch sizes', () => {
+    const manyPeople = Array.from({ length: 2000 }, (_, i) => ({ name: `Import${i}`, birth_date: '2000-01-01' }));
+    const result = importFromJSON({ people: manyPeople });
+    assert.ok(result.people.created <= 1000);
+  });
+
+  it('should reject invalid media type', () => {
+    assert.throws(() => Media.create({ filePath: 'test.exe', type: 'executable' }), /Invalid media type/);
+  });
+
+  it('should reject invalid relationship type', () => {
+    assert.throws(() => Person.addRelationship(generateId(), generateId(), 'invalid'), /Invalid relationship type/);
+  });
+
+  it('should reject path traversal in media delete', () => {
+    // file_path with traversal should be rejected at create time
+    assert.throws(() => Media.create({ filePath: '../../../etc/passwd', type: 'document' }), /Invalid file path/);
   });
 });

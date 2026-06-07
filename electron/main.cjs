@@ -94,7 +94,9 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webSecurity: true,
+      disableBlinkFeatures: 'Auxclick'
     }
   });
 
@@ -103,10 +105,19 @@ function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http')) {
+    if (url.startsWith('https://') || url.startsWith('http://127.0.0.1') || url.startsWith('http://localhost')) {
       shell.openExternal(url);
     }
     return { action: 'deny' };
+  });
+
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': ["default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; frame-src 'none'; object-src 'none'"]
+      }
+    });
   });
 
   if (process.env.NODE_ENV === 'development') {

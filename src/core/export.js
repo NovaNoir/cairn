@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { marked } from 'marked';
 import { Person, Story } from './models.js';
+import { sanitizeMarkdownHtml } from './security.js';
 
 export function exportJSON(outputDir) {
   const data = { people: Person.getAll(), stories: Story.getAllWithPeople() };
@@ -76,7 +77,7 @@ export function exportHTML(outputDir) {
       <h1>${escapeHtml(s.title)}</h1>
       ${s.story_date ? `<p class="date">${s.story_date}</p>` : ''}
       ${peopleLinks ? `<p class="people">With: ${peopleLinks}</p>` : ''}
-      <div class="content">${marked.parse(s.content)}</div>
+      <div class="content">${sanitizeMarkdownHtml(marked.parse(s.content))}</div>
       ${(s.tags || []).length ? `<div class="tags">${s.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       <footer><a href="index.html">← Back to Home</a></footer>
     `);
