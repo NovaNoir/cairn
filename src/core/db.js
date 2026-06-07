@@ -63,6 +63,44 @@ CREATE TABLE IF NOT EXISTS media (
   caption TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE VIRTUAL TABLE IF NOT EXISTS stories_fts USING fts5(
+  title, content, story_date,
+  content='stories', content_rowid='rowid',
+  tokenize='porter unicode61'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS people_fts USING fts5(
+  name, bio, birth_date, death_date,
+  content='people', content_rowid='rowid',
+  tokenize='porter unicode61'
+);
+
+CREATE TRIGGER IF NOT EXISTS stories_ai AFTER INSERT ON stories BEGIN
+  INSERT INTO stories_fts(rowid, title, content, story_date) VALUES (new.rowid, new.title, new.content, new.story_date);
+END;
+
+CREATE TRIGGER IF NOT EXISTS stories_ad AFTER DELETE ON stories BEGIN
+  INSERT INTO stories_fts(stories_fts, rowid, title, content, story_date) VALUES('delete', old.rowid, old.title, old.content, old.story_date);
+END;
+
+CREATE TRIGGER IF NOT EXISTS stories_au AFTER UPDATE ON stories BEGIN
+  INSERT INTO stories_fts(stories_fts, rowid, title, content, story_date) VALUES('delete', old.rowid, old.title, old.content, old.story_date);
+  INSERT INTO stories_fts(rowid, title, content, story_date) VALUES (new.rowid, new.title, new.content, new.story_date);
+END;
+
+CREATE TRIGGER IF NOT EXISTS people_ai AFTER INSERT ON people BEGIN
+  INSERT INTO people_fts(rowid, name, bio, birth_date, death_date) VALUES (new.rowid, new.name, new.bio, new.birth_date, new.death_date);
+END;
+
+CREATE TRIGGER IF NOT EXISTS people_ad AFTER DELETE ON people BEGIN
+  INSERT INTO people_fts(people_fts, rowid, name, bio, birth_date, death_date) VALUES('delete', old.rowid, old.name, old.bio, old.birth_date, old.death_date);
+END;
+
+CREATE TRIGGER IF NOT EXISTS people_au AFTER UPDATE ON people BEGIN
+  INSERT INTO people_fts(people_fts, rowid, name, bio, birth_date, death_date) VALUES('delete', old.rowid, old.name, old.bio, old.birth_date, old.death_date);
+  INSERT INTO people_fts(rowid, name, bio, birth_date, death_date) VALUES (new.rowid, new.name, new.bio, new.birth_date, new.death_date);
+END;
 `;
 
 export function getDB(vaultPath = null) {
@@ -85,7 +123,19 @@ export function getDB(vaultPath = null) {
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
 
+  rebuildFTS();
+
   return db;
+}
+
+export function rebuildFTS() {
+  if (!db) return;
+  try {
+    db.exec(`INSERT INTO stories_fts(stories_fts) VALUES('rebuild')`);
+    db.exec(`INSERT INTO people_fts(people_fts) VALUES('rebuild')`);
+  } catch (e) {
+    // Tables may not have content yet, that's fine
+  }
 }
 
 export function getVaultPath() {

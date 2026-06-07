@@ -4,7 +4,7 @@ import { existsSync, writeFileSync } from 'fs';
 import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { getDB, getMediaDir, generateId } from '../core/db.js';
-import { Person, Story, Media, Tag } from '../core/models.js';
+import { Person, Story, Media, Tag, importFromJSON, STORY_PROMPTS, getPromptsForCategory, getRandomPrompts } from '../core/models.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -142,9 +142,41 @@ export function startServer(port = 4717) {
   // Search
   app.get('/api/search', (req, res) => {
     const q = req.query.q || '';
-    const people = Person.search(q);
-    const stories = Story.search(q);
-    res.json({ people, stories });
+    const fts = req.query.fts !== 'false';
+    if (fts) {
+      const people = Person.searchFTS(q);
+      const stories = Story.searchFTS(q);
+      res.json({ people, stories });
+    } else {
+      const people = Person.search(q);
+      const stories = Story.search(q);
+      res.json({ people, stories });
+    }
+  });
+
+  // Import
+  app.post('/api/import', (req, res) => {
+    try {
+      const result = importFromJSON(req.body);
+      res.json(result);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Story prompts
+  app.get('/api/prompts', (req, res) => {
+    const category = req.query.category;
+    if (category) {
+      res.json(getPromptsForCategory(category));
+    } else {
+      const count = parseInt(req.query.count) || 3;
+      res.json(getRandomPrompts(count));
+    }
+  });
+
+  app.get('/api/prompts/all', (_req, res) => {
+    res.json(STORY_PROMPTS);
   });
 
   // Stats

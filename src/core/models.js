@@ -76,7 +76,26 @@ export const Person = {
 
   search(query) {
     const db = getDB();
-    return db.prepare('SELECT * FROM people WHERE name LIKE ? ORDER BY name ASC').all(`%${query}%`);
+    if (!query || !query.trim()) return this.getAll();
+    try {
+      return db.prepare(`SELECT p.* FROM people_fts f
+        JOIN people p ON p.rowid = f.rowid
+        WHERE people_fts MATCH ? ORDER BY rank LIMIT 50`).all(query);
+    } catch {
+      return db.prepare('SELECT * FROM people WHERE name LIKE ? ORDER BY name ASC').all(`%${query}%`);
+    }
+  },
+
+  searchFTS(query) {
+    const db = getDB();
+    if (!query || !query.trim()) return [];
+    try {
+      return db.prepare(`SELECT p.*, snippet(people_fts, 1, '<mark>', '</mark>', '...', 32) AS snippet
+        FROM people_fts f JOIN people p ON p.rowid = f.rowid
+        WHERE people_fts MATCH ? ORDER BY rank LIMIT 50`).all(query);
+    } catch {
+      return this.search(query);
+    }
   },
 
   getAllWithRelationships() {
@@ -172,8 +191,27 @@ export const Story = {
 
   search(query) {
     const db = getDB();
-    return db.prepare('SELECT * FROM stories WHERE title LIKE ? OR content LIKE ? ORDER BY COALESCE(story_date, created_at) DESC')
-      .all(`%${query}%`, `%${query}%`);
+    if (!query || !query.trim()) return this.getAll();
+    try {
+      return db.prepare(`SELECT s.* FROM stories_fts f
+        JOIN stories s ON s.rowid = f.rowid
+        WHERE stories_fts MATCH ? ORDER BY rank LIMIT 50`).all(query);
+    } catch {
+      return db.prepare('SELECT * FROM stories WHERE title LIKE ? OR content LIKE ? ORDER BY COALESCE(story_date, created_at) DESC')
+        .all(`%${query}%`, `%${query}%`);
+    }
+  },
+
+  searchFTS(query) {
+    const db = getDB();
+    if (!query || !query.trim()) return [];
+    try {
+      return db.prepare(`SELECT s.*, snippet(stories_fts, 2, '<mark>', '</mark>', '...', 32) AS snippet
+        FROM stories_fts f JOIN stories s ON s.rowid = f.rowid
+        WHERE stories_fts MATCH ? ORDER BY rank LIMIT 50`).all(query);
+    } catch {
+      return this.search(query);
+    }
   },
 
   getByPersonId(personId) {
@@ -295,3 +333,108 @@ export const Tag = {
     return { total: total.count, popular };
   }
 };
+
+export function importFromJSON(jsonData) {
+  const db = getDB();
+  const result = { people: { created: 0, skipped: 0 }, stories: { created: 0, skipped: 0 } };
+
+  const findExistingPerson = db.prepare('SELECT id FROM people WHERE name = ? AND (birth_date = ? OR (birth_date IS NULL AND ? IS NULL))');
+
+  const insertPerson = db.prepare(`INSERT INTO people (id, name, birth_date, death_date, bio, photo_path, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+  const insertStory = db.prepare('INSERT INTO stories (id, title, content, story_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+  const insertStoryPerson = db.prepare('INSERT OR IGNORE INTO story_people (story_id, person_id) VALUES (?, ?)');
+  const insertTag = db.prepare('INSERT OR IGNORE INTO tags (id, name) VALUES (?, ?)');
+  const insertStoryTag = db.prepare('INSERT OR IGNORE INTO story_tags (story_id, tag_id) VALUES (?, ?)');
+
+  const upsertPerson = db.prepare(`UPDATE people SET death_date = ?, bio = ?, photo_path = ?, updated_at = datetime('now')
+    WHERE id = ?`);
+
+  const peopleMap = {};
+
+  if (jsonData.people) {
+    for (const p of jsonData.people) {
+      const existing = findExistingPerson.get(p.name, p.birth_date || null, p.birth_date || null);
+      if (existing) {
+        upsertPerson.run(p.death_date || null, p.bio || null, p.photo_path || null, existing.id);
+        peopleMap[p.id || p.name] = existing.id;
+        result.people.skipped++;
+      } else {
+        const id = p.id || generateId();
+        insertPerson.run(id, p.name, p.birth_date || null, p.death_date || null, p.bio || null, p.photo_path || null, p.created_at || new Date().toISOString(), p.updated_at || new Date().toISOString());
+        peopleMap[p.id || p.name] = id;
+        result.people.created++;
+      }
+    }
+  }
+
+  if (jsonData.stories) {
+    for (const s of jsonData.stories) {
+      const storyId = s.id || generateId();
+      insertStory.run(storyId, s.title, s.content, s.story_date || null, s.created_at || new Date().toISOString(), s.updated_at || new Date().toISOString());
+
+      if (s.people) {
+        for (const sp of s.people) {
+          const pid = sp.id || peopleMap[sp.name];
+          if (pid) insertStoryPerson.run(storyId, pid);
+        }
+      }
+
+      if (s.tags) {
+        for (const tagName of s.tags) {
+          const tagId = generateId();
+          insertTag.run(tagId, tagName.toLowerCase().trim());
+          const existing = db.prepare('SELECT id FROM tags WHERE name = ?').get(tagName.toLowerCase().trim());
+          if (existing) insertStoryTag.run(storyId, existing.id);
+        }
+      }
+
+      result.stories.created++;
+    }
+  }
+
+  return result;
+}
+
+export const STORY_PROMPTS = [
+  { id: 'childhood-home', question: 'Describe the home you grew up in. What did it look like, smell like, feel like?', category: 'childhood' },
+  { id: 'grandparent-memory', question: 'Tell a story about one of your grandparents. What do you remember most about them?', category: 'family' },
+  { id: 'family-tradition', question: 'What was a tradition your family had that you loved?', category: 'family' },
+  { id: 'first-job', question: 'What was your first job and what did you learn from it?', category: 'life' },
+  { id: 'meeting-partner', question: 'How did you meet your partner? Tell the story of your first meeting.', category: 'relationships' },
+  { id: 'hardest-lesson', question: 'What was the hardest lesson life taught you?', category: 'wisdom' },
+  { id: 'proudest-moment', question: 'What moment in your life are you most proud of?', category: 'achievements' },
+  { id: 'childhood-friend', question: 'Tell me about your best childhood friend. What adventures did you share?', category: 'childhood' },
+  { id: 'school-days', question: 'What was school like for you? Any memorable teachers or moments?', category: 'childhood' },
+  { id: 'family-holiday', question: 'Describe a memorable holiday or vacation your family took.', category: 'family' },
+  { id: 'recipe-story', question: 'Is there a family recipe that has been passed down? What is the story behind it?', category: 'traditions' },
+  { id: 'cultural-heritage', question: 'What cultural or ethnic traditions did your family observe?', category: 'traditions' },
+  { id: 'life-changing-event', question: 'Describe an event that changed the course of your life.', category: 'life' },
+  { id: 'regret', question: 'Is there something you wish you had done differently? What would you change?', category: 'wisdom' },
+  { id: 'historical-witness', question: 'What major historical events do you remember living through?', category: 'history' },
+  { id: 'parent-memory', question: 'What is your strongest memory of your mother or father?', category: 'family' },
+  { id: 'sibling-rivalry', question: 'Tell a story about growing up with your siblings — the fights, the fun, the secrets.', category: 'childhood' },
+  { id: 'place-that-shaped-you', question: 'Is there a place (a town, a house, a room) that shaped who you are?', category: 'life' },
+  { id: 'act-of-kindness', question: 'Tell me about a time someone showed you unexpected kindness.', category: 'wisdom' },
+  { id: 'personal-mantra', question: 'What is a saying, motto, or piece of advice you live by?', category: 'wisdom' },
+  { id: 'first-love', question: 'Tell me about your first love — who were they and what happened?', category: 'relationships' },
+  { id: 'overcoming-fear', question: 'Describe a time you faced a fear and overcame it.', category: 'achievements' },
+  { id: 'community-memory', question: 'What was your neighborhood or community like growing up?', category: 'childhood' },
+  { id: 'pet-story', question: 'Tell me about a pet that was special to you.', category: 'life' },
+  { id: 'family-myth', question: 'Is there a story or legend that your family tells and retells?', category: 'traditions' },
+  { id: 'defining-challenge', question: 'What was the biggest challenge you faced and how did you get through it?', category: 'achievements' },
+  { id: 'music-memory', question: 'What song or music takes you back to a specific time in your life?', category: 'life' },
+  { id: 'letter-to-future', question: 'What would you want future generations of your family to know about you?', category: 'legacy' },
+  { id: 'best-decision', question: 'What is the best decision you ever made?', category: 'wisdom' },
+  { id: 'everyday-joy', question: 'What small, everyday thing brings you happiness?', category: 'life' },
+];
+
+export function getPromptsForCategory(category) {
+  if (!category) return STORY_PROMPTS;
+  return STORY_PROMPTS.filter(p => p.category === category);
+}
+
+export function getRandomPrompts(count = 3) {
+  const shuffled = [...STORY_PROMPTS].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+}

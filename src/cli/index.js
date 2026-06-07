@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { join } from 'path';
 import { readFileSync } from 'fs';
 import { getDB, closeDB } from '../core/db.js';
-import { Person, Story, Media } from '../core/models.js';
+import { Person, Story, Media, importFromJSON, STORY_PROMPTS } from '../core/models.js';
 import { exportJSON, exportHTML } from '../core/export.js';
 
 const program = new Command();
@@ -167,6 +167,34 @@ exportCmd.command('html [dir]')
     const path = exportHTML(out);
     console.log(`Static site generated at ${path}/`);
     console.log('Open index.html in your browser to view.');
+  });
+
+program.command('import <file>')
+  .description('Import people and stories from a JSON file')
+  .action((file) => {
+    const data = JSON.parse(readFileSync(file, 'utf-8'));
+    const result = importFromJSON(data);
+    console.log(`Imported: ${result.people.created} people (${result.people.skipped} skipped), ${result.stories.created} stories (${result.stories.skipped} skipped)`);
+  });
+
+const promptCmd = program.command('prompt').description('Story prompts for inspiration');
+
+promptCmd.command('list')
+  .description('List all story prompts')
+  .action(() => {
+    for (const p of STORY_PROMPTS) {
+      console.log(`\n[${p.category}] ${p.question}`);
+    }
+  });
+
+promptCmd.command('random [count]')
+  .description('Show random prompts')
+  .action((count) => {
+    const n = parseInt(count) || 3;
+    const shuffled = [...STORY_PROMPTS].sort(() => 0.5 - Math.random());
+    for (const p of shuffled.slice(0, n)) {
+      console.log(`\n[${p.category}] ${p.question}`);
+    }
   });
 
 program.command('serve')

@@ -33,27 +33,43 @@
       "node_modules/**/*"
     ],
     "extraResources": [
-      { "from": "src/web/icons", "to": "icons" }
+      {
+        "from": "src/web/icons",
+        "to": "icons"
+      }
     ],
     "mac": {
       "category": "public.app-category.lifestyle",
       "icon": "electron/icon.png",
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "win": {
       "icon": "electron/icon.png",
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "linux": {
       "icon": "electron/icon.png",
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Office"
     }
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
     "commander": "^12.1.0",
+    "dompurify": "^3.4.8",
     "express": "^4.21.0",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
+    "jsdom": "^29.1.1",
     "marked": "^14.1.0",
     "multer": "^2.1.1"
   },
