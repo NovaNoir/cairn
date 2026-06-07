@@ -8,6 +8,8 @@ Everything stays on your machine. No accounts, no cloud, no algorithm. Just your
 
 **Runs on:** macOS &bull; Windows &bull; Linux &bull; Android &bull; iOS &bull; any browser &bull; any terminal
 
+**Project site:** [https://novanoir.github.io/cairn/](https://novanoir.github.io/cairn/)
+
 ## Quick Start
 
 ```bash
