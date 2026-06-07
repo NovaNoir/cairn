@@ -1,0 +1,21 @@
+{
+  "name": "cairn",
+  "version": "0.1.0",
+  "description": "A local-first tool for preserving family stories, personal history, and cultural knowledge.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "cairn": "./src/cli/index.js"
+  },
+  "scripts": {
+    "start": "node src/cli/index.js",
+    "serve": "node src/server/index.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "commander": "^12.1.0",
+    "express": "^4.21.0",
+    "marked": "^14.1.0"
+  }
+}

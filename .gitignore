@@ -1,0 +1,4 @@
+node_modules/
+.cairn/
+*.db
+.cairn-test-*
