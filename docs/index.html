@@ -4,81 +4,115 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cairn — Remember what matters</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪨</text></svg>">
+<meta name="description" content="A local-first tool for preserving family stories, personal history, and cultural knowledge. Runs everywhere — desktop, mobile, CLI.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Cellipse cx='40' cy='60' rx='26' ry='12' fill='%237a5238' opacity='0.6'/%3E%3Cellipse cx='40' cy='46' rx='22' ry='10' fill='%237a5238' opacity='0.75'/%3E%3Ccircle cx='40' cy='30' r='16' fill='%237a5238' opacity='0.9'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #f6f4f0;
-    --text: #1a1a1a;
-    --text-muted: #8a8580;
-    --primary: #6b4c3b;
-    --primary-light: #8b6b5a;
-    --accent: #c9a87c;
-    --border: #e0dbd6;
-    --card: #ffffff;
-    --font: Georgia, 'Times New Roman', serif;
-    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --bg: #f5f0eb;
+    --text: #1e1814;
+    --text-secondary: #5a4a3e;
+    --text-muted: #9e9084;
+    --primary: #7a5238;
+    --primary-light: #9a6a4a;
+    --accent: #c4a265;
+    --border: #e0d6cc;
+    --card: #fdfaf7;
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-body: 'Source Serif 4', Georgia, serif;
+    --font-ui: 'DM Sans', -apple-system, sans-serif;
+    --ease: cubic-bezier(0.34, 1.1, 0.4, 1);
   }
-  body {
-    font-family: var(--font);
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.7;
-  }
-  .container { max-width: 720px; margin: 0 auto; padding: 3em 1.5em; }
-  header { text-align: center; padding: 4em 0 2em; }
-  h1 { font-size: 3.5em; font-weight: 400; letter-spacing: -0.03em; color: var(--text); }
-  .tagline { font-size: 1.2em; color: var(--text-muted); font-style: italic; margin-top: 0.5em; }
-  .badge { display: inline-block; background: var(--primary); color: white; padding: 0.3em 1em; border-radius: 20px; font-family: var(--font-ui); font-size: 0.85em; margin-top: 1em; }
-  section { margin: 4em 0; }
-  h2 { font-size: 1.8em; font-weight: 400; color: var(--primary); margin-bottom: 0.8em; }
-  h3 { font-size: 1.2em; font-weight: 500; margin: 1.5em 0 0.5em; }
-  p { margin: 1em 0; color: #444; }
+  body { font-family: var(--font-body); background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 740px; margin: 0 auto; padding: 0 1.5em; }
   .hero {
-    background: linear-gradient(135deg, #2d1f14 0%, #6b4c3b 100%);
+    background: linear-gradient(135deg, #2d1f14 0%, #7a5238 100%);
     color: white; padding: 5em 1.5em; text-align: center;
+    position: relative; overflow: hidden;
   }
-  .hero h1 { color: white; font-size: 4em; }
-  .hero .tagline { color: rgba(255,255,255,0.8); }
-  .hero .badge { background: var(--accent); color: #2d1f14; font-weight: 500; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1em; margin: 2em 0; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5em; text-align: center; }
-  .card-icon { font-size: 2.5em; margin-bottom: 0.3em; }
-  .card h3 { margin: 0.3em 0; font-family: var(--font-ui); font-weight: 600; font-size: 1em; }
-  .card p { font-size: 0.9em; color: var(--text-muted); margin: 0; }
-  .quote { font-style: italic; color: var(--text-muted); border-left: 3px solid var(--accent); padding-left: 1.5em; margin: 2em 0; font-size: 1.1em; }
-  .cta { text-align: center; padding: 3em 0; }
-  .btn { display: inline-block; background: var(--primary); color: white; padding: 0.8em 2em; border-radius: 30px; text-decoration: none; font-family: var(--font-ui); font-weight: 500; margin: 0.5em; transition: background 0.2s; }
-  .btn:hover { background: var(--primary-light); }
-  .btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
-  .btn-outline:hover { background: var(--primary); color: white; }
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5em; margin: 2em 0; }
-  .feature { background: var(--card); border-radius: 10px; padding: 1.5em; border: 1px solid var(--border); }
-  .feature h3 { font-size: 1.1em; margin-top: 0; font-family: var(--font-ui); }
-  .feature p { font-size: 0.95em; }
+  .hero::after {
+    content: ''; position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 256px 256px; opacity: 0.04; pointer-events: none;
+  }
+  .hero-content { position: relative; z-index: 1; }
+  .hero .logo svg { margin-bottom: 0.5em; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+  .hero h1 { font-family: var(--font-display); font-size: 4em; font-weight: 400; letter-spacing: -0.03em; }
+  .hero .tagline { font-family: var(--font-body); font-style: italic; color: rgba(255,255,255,0.8); font-size: 1.2em; margin-top: 0.3em; }
+  .badge-row { display: flex; gap: 0.5em; justify-content: center; flex-wrap: wrap; margin-top: 1.2em; }
+  .badge { display: inline-block; background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); color: white; padding: 0.3em 1em; border-radius: 20px; font-family: var(--font-ui); font-size: 0.78em; font-weight: 500; }
+  .badge-solid { background: var(--accent); color: #2d1f14; }
+  .cta { padding: 2em 0 0; }
+  .btn { display: inline-block; background: white; color: var(--primary); padding: 0.7em 2em; border-radius: 30px; text-decoration: none; font-family: var(--font-ui); font-weight: 600; font-size: 0.95em; margin: 0.3em; transition: all 0.3s var(--ease); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+  .btn-outline { background: transparent; color: white; border: 1.5px solid rgba(255,255,255,0.4); box-shadow: none; }
+  .btn-outline:hover { background: rgba(255,255,255,0.1); border-color: white; }
+  section { margin: 4em 0; }
+  h2 { font-family: var(--font-display); font-size: 1.8em; font-weight: 400; color: var(--primary); margin-bottom: 0.6em; }
+  h3 { font-family: var(--font-display); font-size: 1.2em; font-weight: 500; margin: 1.5em 0 0.3em; color: var(--text); }
+  p { margin: 0.8em 0; color: var(--text-secondary); }
+  a { color: var(--primary); }
+  .quote { font-style: italic; color: var(--text-muted); border-left: 3px solid var(--accent); padding-left: 1.5em; margin: 1.5em 0; font-size: 1.05em; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.2em; margin: 1.5em 0; }
+  .feature { background: var(--card); border-radius: 12px; padding: 1.5em; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: all 0.3s var(--ease); }
+  .feature:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .feature h3 { font-family: var(--font-display); font-size: 1.05em; margin-top: 0; margin-bottom: 0.3em; }
+  .feature p { font-size: 0.92em; margin: 0; }
+  .plat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.8em; margin: 1.5em 0; }
+  .plat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.2em; text-align: center; }
+  .plat-icon { font-size: 2em; margin-bottom: 0.2em; }
+  .plat-card h4 { font-family: var(--font-ui); font-size: 0.85em; font-weight: 600; }
+  .plat-card p { font-family: var(--font-ui); font-size: 0.72em; color: var(--text-muted); margin-top: 0.15em; }
   .steps { counter-reset: step; }
-  .step { counter-increment: step; margin: 1.5em 0; padding-left: 3em; position: relative; }
-  .step::before { content: counter(step); position: absolute; left: 0; top: 0; background: var(--primary); color: white; width: 2em; height: 2em; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-weight: 600; font-size: 0.9em; }
-  .step h3 { margin: 0 0 0.3em; font-family: var(--font-ui); }
-  .step p { margin: 0; font-size: 0.95em; }
-  .step code { background: #ede8e3; padding: 0.1em 0.4em; border-radius: 3px; font-size: 0.9em; }
+  .step { counter-increment: step; margin: 1.2em 0; padding-left: 3em; position: relative; }
+  .step::before { content: counter(step); position: absolute; left: 0; top: 0.15em; background: var(--primary); color: white; width: 2em; height: 2em; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-weight: 600; font-size: 0.85em; }
+  .step h3 { font-family: var(--font-ui); margin: 0 0 0.15em; font-size: 1em; font-weight: 500; }
+  .step p { margin: 0; font-size: 0.92em; }
+  .step code { background: #ede6de; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.88em; font-family: 'SF Mono', monospace; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; margin: 1.5em 0; }
+  .two-col .step { margin: 0.6em 0; padding-left: 2.5em; }
+  .two-col .step::before { width: 1.6em; height: 1.6em; font-size: 0.75em; }
   hr { border: none; border-top: 1px solid var(--border); margin: 3em 0; }
-  footer { text-align: center; color: var(--text-muted); font-size: 0.9em; padding: 3em 0; }
-  .stone-divider { text-align: center; color: var(--border); font-size: 1.5em; letter-spacing: 0.5em; margin: 2em 0; }
-  @media (max-width: 600px) {
+  .stone-divider { text-align: center; color: var(--border); font-size: 1.2em; letter-spacing: 0.5em; margin: 2.5em 0; user-select: none; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1em; margin: 2em 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5em; text-align: center; transition: all 0.3s var(--ease); }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .card-icon { font-size: 2em; margin-bottom: 0.3em; }
+  .card h3 { font-family: var(--font-ui); font-weight: 600; font-size: 0.9em; letter-spacing: 0.04em; margin: 0; }
+  .card p { font-size: 0.82em; color: var(--text-muted); margin-top: 0.2em; }
+  footer { text-align: center; color: var(--text-muted); font-size: 0.88em; padding: 3em 0; }
+  @media (max-width: 650px) {
     .hero h1 { font-size: 2.5em; }
-    h1 { font-size: 2.5em; }
-    .container { padding: 2em 1em; }
+    .hero { padding: 3em 1em; }
+    .two-col { grid-template-columns: 1fr; }
+    h2 { font-size: 1.5em; }
+    .features { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
 
 <section class="hero">
-  <div class="container">
+  <div class="hero-content">
+    <div class="logo">
+      <svg viewBox="0 0 80 80" width="56" height="56">
+        <ellipse cx="40" cy="60" rx="26" ry="12" fill="#c9a87c" opacity="0.6"/>
+        <ellipse cx="40" cy="46" rx="22" ry="10" fill="#d4b880" opacity="0.75"/>
+        <circle cx="40" cy="30" r="16" fill="#e8d4b0" opacity="0.9"/>
+      </svg>
+    </div>
     <h1>Cairn</h1>
     <p class="tagline">Remember what matters.</p>
-    <span class="badge">v0.1.0 &middot; Local-first &middot; Open source</span>
+    <div class="badge-row">
+      <span class="badge badge-solid">v0.3.0</span>
+      <span class="badge">Local-first</span>
+      <span class="badge">Open source</span>
+      <span class="badge">Cross-platform</span>
+      <span class="badge">PWA</span>
+    </div>
     <div class="cta">
       <a class="btn" href="https://github.com/NovaNoir/cairn">View on GitHub</a>
       <a class="btn btn-outline" href="#get-started">Get Started</a>
@@ -90,15 +124,46 @@
 
   <section>
     <p>Cairn is a local-first tool for preserving family stories, personal history, and cultural knowledge. It helps you weave the threads of a life — people, stories, memories — into something that lasts beyond it.</p>
-    <p>Everything stays on your machine. No accounts, no cloud, no algorithm. Just your memories, organized with care.</p>
+    <p><strong>Everything stays on your machine.</strong> No accounts, no cloud, no algorithm. Just your memories, organized with care. Available on every device you own.</p>
   </section>
 
   <div class="stone-divider">&sdot; &sdot; &sdot;</div>
 
   <section>
-    <h2>Why Cairn?</h2>
-    <div class="quote">"Every day, elders pass away taking their stories with them. Photos sit unlabeled on hard drives. Recipes vanish. Wisdom dissolves."</div>
-    <p>Social media is ephemeral. Cloud services come and go. There is no tool designed purely for <em>preserving human experience</em> — not for productivity, not for likes, but for legacy. Cairn exists to fill that space.</p>
+    <h2>Run on Every Platform</h2>
+    <p>Cairn works everywhere you do — no account required, no cloud dependency, your data stays yours.</p>
+    <div class="plat-grid">
+      <div class="plat-card">
+        <div class="plat-icon">&#63743;</div>
+        <h4>macOS</h4>
+        <p>Desktop app &bull; CLI</p>
+      </div>
+      <div class="plat-card">
+        <div class="plat-icon">&#x229E;</div>
+        <h4>Windows</h4>
+        <p>Desktop app &bull; CLI</p>
+      </div>
+      <div class="plat-card">
+        <div class="plat-icon">&#x2714;</div>
+        <h4>Linux</h4>
+        <p>Desktop app &bull; CLI</p>
+      </div>
+      <div class="plat-card">
+        <div class="plat-icon">&#x1F4F1;</div>
+        <h4>Android / iOS</h4>
+        <p>PWA &bull; Add to Home</p>
+      </div>
+      <div class="plat-card">
+        <div class="plat-icon">&#x1F5A5;</div>
+        <h4>Any Browser</h4>
+        <p>Web UI &bull; `npm run serve`</p>
+      </div>
+      <div class="plat-card">
+        <div class="plat-icon">&#x1F4BB;</div>
+        <h4>Terminal</h4>
+        <p>CLI &bull; `npm start`</p>
+      </div>
+    </div>
   </section>
 
   <section>
@@ -106,19 +171,27 @@
     <div class="features">
       <div class="feature">
         <h3>People</h3>
-        <p>Record family members, ancestors, friends. Link them through relationships and attach photos, bios, and life dates.</p>
+        <p>Record family members, ancestors, friends. Link them through relationships, attach photos, bios, and life dates.</p>
       </div>
       <div class="feature">
         <h3>Stories</h3>
-        <p>Write rich stories in markdown, record audio directly in the browser, tag and date everything, link to the people involved.</p>
+        <p>Write rich stories in markdown with a live preview editor. Record audio directly in the browser. Tag, date, and link to people.</p>
       </div>
       <div class="feature">
-        <h3>Timeline</h3>
-        <p>See every life event and story in chronological order. Watch a life unfold from beginning to end.</p>
+        <h3>Media &amp; Voice</h3>
+        <p>Upload photos, record voice directly in the app. Every image and recording is stored locally — no cloud uploads.</p>
       </div>
       <div class="feature">
         <h3>Family Tree</h3>
-        <p>Visualize relationships with an interactive family tree. See the connections between generations.</p>
+        <p>Visualize relationships with an interactive SVG family tree. See the connections between generations at a glance.</p>
+      </div>
+      <div class="feature">
+        <h3>Timeline</h3>
+        <p>Every life event and story in chronological order, grouped by decade. Watch a life unfold from beginning to end.</p>
+      </div>
+      <div class="feature">
+        <h3>Statistics</h3>
+        <p>Your archive at a glance: total people, stories, media, tags. See the oldest person, most used tags, and media breakdown.</p>
       </div>
       <div class="feature">
         <h3>Export</h3>
@@ -126,37 +199,82 @@
       </div>
       <div class="feature">
         <h3>Privacy First</h3>
-        <p>Everything runs locally on your machine. No accounts, no cloud uploads, no telemetry, no tracking.</p>
+        <p>Everything runs locally. No accounts, no cloud uploads, no telemetry, no tracking. Your family stories belong to you.</p>
       </div>
     </div>
   </section>
 
   <section id="get-started">
-    <h2>Get Started in Two Minutes</h2>
+    <h2>Get Started</h2>
+    <h3>Desktop app (macOS, Windows, Linux)</h3>
     <div class="steps">
       <div class="step">
-        <h3>Install</h3>
+        <h3>Install &amp; build</h3>
         <p><code>git clone https://github.com/NovaNoir/cairn.git</code><br><code>cd cairn && npm install</code></p>
       </div>
+      <div class="step">
+        <h3>Run the desktop app</h3>
+        <p><code>npm run electron</code></p>
+      </div>
+      <div class="step">
+        <h3>Package for your OS</h3>
+        <p><code>npm run build:linux</code> &bull; <code>npm run build:mac</code> &bull; <code>npm run build:win</code></p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:2em;">Web UI (any browser)</h3>
+    <div class="steps">
+      <div class="step">
+        <h3>Start the server</h3>
+        <p><code>npm run serve</code></p>
+      </div>
+      <div class="step">
+        <h3>Open in your browser</h3>
+        <p><code>http://localhost:4717</code></p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:2em;">Mobile (Android / iOS)</h3>
+    <div class="steps">
+      <div class="step">
+        <h3>Start the server</h3>
+        <p>Run <code>npm run serve</code> on your computer</p>
+      </div>
+      <div class="step">
+        <h3>Open on your phone</h3>
+        <p>Open your computer's IP address + port <code>:4717</code> in mobile browser</p>
+      </div>
+      <div class="step">
+        <h3>Install as PWA</h3>
+        <p>Android: Chrome &rarr; Install app &bull; iOS: Safari &rarr; Share &rarr; Add to Home Screen</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:2em;">CLI (terminal)</h3>
+    <div class="two-col">
       <div class="step">
         <h3>Initialize</h3>
         <p><code>npm start -- init</code></p>
       </div>
       <div class="step">
-        <h3>Add someone you love</h3>
-        <p><code>npm start -- person add --name "Grandma" --birth "1945-03-12"</code></p>
+        <h3>Add a person</h3>
+        <p><code>npm start -- person add --name "Grandma"</code></p>
       </div>
       <div class="step">
-        <h3>Write their story</h3>
-        <p><code>npm start -- story add --title "Her first recipe" --content "She learned from her mother..." --people &lt;person-id&gt;</code></p>
+        <h3>Add a story</h3>
+        <p><code>npm start -- story add --title "Recipe" --content "..."</code></p>
       </div>
       <div class="step">
-        <h3>Open the web interface</h3>
-        <p><code>npm run serve</code> &rarr; <code>http://localhost:4717</code></p>
+        <h3>List everything</h3>
+        <p><code>npm start -- person list</code></p>
       </div>
       <div class="step">
-        <h3>Export for the future</h3>
-        <p><code>npm start -- export html ./family-archive</code></p>
+        <h3>Link people</h3>
+        <p><code>npm start -- relation add --from &lt;id&gt; --to &lt;id&gt; --type sibling</code></p>
+      </div>
+      <div class="step">
+        <h3>Export</h3>
+        <p><code>npm start -- export html ./archive</code></p>
       </div>
     </div>
   </section>
@@ -187,6 +305,11 @@
         <h3>CONTRIBUTE</h3>
         <p>Join the project</p>
       </div>
+      <div class="card">
+        <div class="card-icon">&#x1F464;</div>
+        <h3>ABOUT</h3>
+        <p>The story of Cairn</p>
+      </div>
     </div>
   </section>
 
@@ -194,7 +317,7 @@
 
   <footer>
     <p>Created by <a href="https://github.com/NovaNoir/cairn/blob/main/ABOUT.md">Cairn</a> &middot; MIT License</p>
-    <p style="margin-top: 1em; font-size: 0.85em;">A trail marker for the memories that matter.</p>
+    <p style="margin-top: 0.5em; font-size: 0.82em;">A trail marker for the memories that matter.</p>
   </footer>
 
 </div>
