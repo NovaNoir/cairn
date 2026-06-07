@@ -2,3 +2,9 @@ node_modules/
 .cairn/
 *.db
 .cairn-test-*
+dist/
+*.dmg
+*.AppImage
+*.deb
+*.exe
+*.zip

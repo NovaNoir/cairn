@@ -9,7 +9,7 @@ import { Person, Story, Media, Tag } from '../core/models.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export function startServer(port = 4717) {
-  const vaultDir = join(process.cwd(), '.cairn');
+  const vaultDir = process.env.CAIRN_VAULT_PATH || join(process.cwd(), '.cairn');
   getDB(vaultDir);
   const mediaDir = getMediaDir();
 

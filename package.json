@@ -4,13 +4,51 @@
   "description": "A local-first tool for preserving family stories, personal history, and cultural knowledge.",
   "license": "MIT",
   "type": "module",
+  "main": "electron/main.cjs",
   "bin": {
     "cairn": "./src/cli/index.js"
   },
   "scripts": {
     "start": "node src/cli/index.js",
     "serve": "node src/server/index.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "electron": "electron .",
+    "electron:dev": "NODE_ENV=development electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder --mac --win --linux",
+    "build:pwa": "node scripts/build-pwa.js"
+  },
+  "build": {
+    "appId": "com.cairn.app",
+    "productName": "Cairn",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "!src/web/icons/",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      { "from": "src/web/icons", "to": "icons" }
+    ],
+    "mac": {
+      "category": "public.app-category.lifestyle",
+      "icon": "electron/icon.png",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "electron/icon.png",
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "icon": "electron/icon.png",
+      "target": ["AppImage", "deb"],
+      "category": "Office"
+    }
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
@@ -18,5 +56,9 @@
     "express": "^4.21.0",
     "marked": "^14.1.0",
     "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "electron": "^42.3.3",
+    "electron-builder": "^26.15.0"
   }
 }

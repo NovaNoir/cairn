@@ -948,6 +948,16 @@ function esc(s) {
   return div.innerHTML;
 }
 
+// ===== PWA INSTALL =====
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  setTimeout(() => {
+    notify('Install Cairn for offline use', 'success');
+  }, 3000);
+});
+
 // ===== INIT =====
 initDarkMode();
 loadData();
