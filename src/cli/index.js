@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { join } from 'path';
 import { readFileSync } from 'fs';
 import { getDB, closeDB } from '../core/db.js';
-import { Person, Story } from '../core/models.js';
+import { Person, Story, Media } from '../core/models.js';
 import { exportJSON, exportHTML } from '../core/export.js';
 
 const program = new Command();
@@ -112,6 +112,42 @@ storyCmd.command('delete <id>')
   .action((id) => {
     Story.delete(id);
     console.log('Story deleted.');
+  });
+
+// Relationship commands
+const relCmd = program.command('relation').description('Manage relationships');
+relCmd.command('add')
+  .description('Add a relationship between two people')
+  .requiredOption('--from <personId>', 'First person ID')
+  .requiredOption('--to <personId>', 'Second person ID')
+  .requiredOption('--type <type>', 'Relationship type (parent, child, sibling, partner, grandparent, grandchild, cousin, other)')
+  .action((opts) => {
+    const r = Person.addRelationship(opts.from, opts.to, opts.type);
+    console.log(`Relationship added: ${r.id}`);
+  });
+relCmd.command('remove <id>')
+  .description('Remove a relationship')
+  .action((id) => {
+    Person.removeRelationship(id);
+    console.log('Relationship removed.');
+  });
+
+// Media commands
+const mediaCmd = program.command('media').description('Manage media');
+mediaCmd.command('list')
+  .description('List all media')
+  .action(() => {
+    const all = Media.getAll();
+    if (all.length === 0) { console.log('No media found.'); return; }
+    for (const m of all) {
+      console.log(`  ${m.id.substring(0, 8)}  ${m.type}  ${m.original_name || m.file_path} ${m.caption ? '[' + m.caption + ']' : ''}`);
+    }
+  });
+mediaCmd.command('delete <id>')
+  .description('Delete a media item')
+  .action((id) => {
+    Media.delete(id);
+    console.log('Media deleted.');
   });
 
 const exportCmd = program.command('export').description('Export your vault');

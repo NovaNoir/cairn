@@ -1,9 +1,9 @@
 import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 
 let db = null;
+let _vaultPath = null;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS people (
@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS media (
   story_id TEXT REFERENCES stories(id) ON DELETE SET NULL,
   person_id TEXT REFERENCES people(id) ON DELETE SET NULL,
   file_path TEXT NOT NULL,
+  original_name TEXT,
+  mime_type TEXT,
+  file_size INTEGER,
   type TEXT NOT NULL CHECK(type IN ('image','audio','video','document')),
   caption TEXT,
   created_at TEXT DEFAULT (datetime('now'))
@@ -66,8 +69,14 @@ export function getDB(vaultPath = null) {
   if (db) return db;
 
   const dir = vaultPath || join(process.cwd(), '.cairn');
+  _vaultPath = dir;
+
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
+  }
+  const mediaDir = join(dir, 'media');
+  if (!existsSync(mediaDir)) {
+    mkdirSync(mediaDir, { recursive: true });
   }
 
   const dbPath = join(dir, 'vault.db');
@@ -79,11 +88,26 @@ export function getDB(vaultPath = null) {
   return db;
 }
 
+export function getVaultPath() {
+  return _vaultPath;
+}
+
+export function getMediaDir() {
+  const dir = getVaultPath();
+  if (!dir) return null;
+  const mediaDir = join(dir, 'media');
+  if (!existsSync(mediaDir)) {
+    mkdirSync(mediaDir, { recursive: true });
+  }
+  return mediaDir;
+}
+
 export function closeDB() {
   if (db) {
     db.close();
     db = null;
   }
+  _vaultPath = null;
 }
 
 export function generateId() {

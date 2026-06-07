@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cairn — Remember what matters</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪨</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f6f4f0;
+    --text: #1a1a1a;
+    --text-muted: #8a8580;
+    --primary: #6b4c3b;
+    --primary-light: #8b6b5a;
+    --accent: #c9a87c;
+    --border: #e0dbd6;
+    --card: #ffffff;
+    --font: Georgia, 'Times New Roman', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 3em 1.5em; }
+  header { text-align: center; padding: 4em 0 2em; }
+  h1 { font-size: 3.5em; font-weight: 400; letter-spacing: -0.03em; color: var(--text); }
+  .tagline { font-size: 1.2em; color: var(--text-muted); font-style: italic; margin-top: 0.5em; }
+  .badge { display: inline-block; background: var(--primary); color: white; padding: 0.3em 1em; border-radius: 20px; font-family: var(--font-ui); font-size: 0.85em; margin-top: 1em; }
+  section { margin: 4em 0; }
+  h2 { font-size: 1.8em; font-weight: 400; color: var(--primary); margin-bottom: 0.8em; }
+  h3 { font-size: 1.2em; font-weight: 500; margin: 1.5em 0 0.5em; }
+  p { margin: 1em 0; color: #444; }
+  .hero {
+    background: linear-gradient(135deg, #2d1f14 0%, #6b4c3b 100%);
+    color: white; padding: 5em 1.5em; text-align: center;
+  }
+  .hero h1 { color: white; font-size: 4em; }
+  .hero .tagline { color: rgba(255,255,255,0.8); }
+  .hero .badge { background: var(--accent); color: #2d1f14; font-weight: 500; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1em; margin: 2em 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5em; text-align: center; }
+  .card-icon { font-size: 2.5em; margin-bottom: 0.3em; }
+  .card h3 { margin: 0.3em 0; font-family: var(--font-ui); font-weight: 600; font-size: 1em; }
+  .card p { font-size: 0.9em; color: var(--text-muted); margin: 0; }
+  .quote { font-style: italic; color: var(--text-muted); border-left: 3px solid var(--accent); padding-left: 1.5em; margin: 2em 0; font-size: 1.1em; }
+  .cta { text-align: center; padding: 3em 0; }
+  .btn { display: inline-block; background: var(--primary); color: white; padding: 0.8em 2em; border-radius: 30px; text-decoration: none; font-family: var(--font-ui); font-weight: 500; margin: 0.5em; transition: background 0.2s; }
+  .btn:hover { background: var(--primary-light); }
+  .btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+  .btn-outline:hover { background: var(--primary); color: white; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5em; margin: 2em 0; }
+  .feature { background: var(--card); border-radius: 10px; padding: 1.5em; border: 1px solid var(--border); }
+  .feature h3 { font-size: 1.1em; margin-top: 0; font-family: var(--font-ui); }
+  .feature p { font-size: 0.95em; }
+  .steps { counter-reset: step; }
+  .step { counter-increment: step; margin: 1.5em 0; padding-left: 3em; position: relative; }
+  .step::before { content: counter(step); position: absolute; left: 0; top: 0; background: var(--primary); color: white; width: 2em; height: 2em; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-weight: 600; font-size: 0.9em; }
+  .step h3 { margin: 0 0 0.3em; font-family: var(--font-ui); }
+  .step p { margin: 0; font-size: 0.95em; }
+  .step code { background: #ede8e3; padding: 0.1em 0.4em; border-radius: 3px; font-size: 0.9em; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 3em 0; }
+  footer { text-align: center; color: var(--text-muted); font-size: 0.9em; padding: 3em 0; }
+  .stone-divider { text-align: center; color: var(--border); font-size: 1.5em; letter-spacing: 0.5em; margin: 2em 0; }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 2.5em; }
+    h1 { font-size: 2.5em; }
+    .container { padding: 2em 1em; }
+  }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="container">
+    <h1>Cairn</h1>
+    <p class="tagline">Remember what matters.</p>
+    <span class="badge">v0.1.0 &middot; Local-first &middot; Open source</span>
+    <div class="cta">
+      <a class="btn" href="https://github.com/NovaNoir/cairn">View on GitHub</a>
+      <a class="btn btn-outline" href="#get-started">Get Started</a>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+
+  <section>
+    <p>Cairn is a local-first tool for preserving family stories, personal history, and cultural knowledge. It helps you weave the threads of a life — people, stories, memories — into something that lasts beyond it.</p>
+    <p>Everything stays on your machine. No accounts, no cloud, no algorithm. Just your memories, organized with care.</p>
+  </section>
+
+  <div class="stone-divider">&sdot; &sdot; &sdot;</div>
+
+  <section>
+    <h2>Why Cairn?</h2>
+    <div class="quote">"Every day, elders pass away taking their stories with them. Photos sit unlabeled on hard drives. Recipes vanish. Wisdom dissolves."</div>
+    <p>Social media is ephemeral. Cloud services come and go. There is no tool designed purely for <em>preserving human experience</em> — not for productivity, not for likes, but for legacy. Cairn exists to fill that space.</p>
+  </section>
+
+  <section>
+    <h2>Features</h2>
+    <div class="features">
+      <div class="feature">
+        <h3>People</h3>
+        <p>Record family members, ancestors, friends. Link them through relationships and attach photos, bios, and life dates.</p>
+      </div>
+      <div class="feature">
+        <h3>Stories</h3>
+        <p>Write rich stories in markdown, record audio directly in the browser, tag and date everything, link to the people involved.</p>
+      </div>
+      <div class="feature">
+        <h3>Timeline</h3>
+        <p>See every life event and story in chronological order. Watch a life unfold from beginning to end.</p>
+      </div>
+      <div class="feature">
+        <h3>Family Tree</h3>
+        <p>Visualize relationships with an interactive family tree. See the connections between generations.</p>
+      </div>
+      <div class="feature">
+        <h3>Export</h3>
+        <p>Generate a complete static HTML site or JSON archive. Your data, portable forever. No proprietary formats.</p>
+      </div>
+      <div class="feature">
+        <h3>Privacy First</h3>
+        <p>Everything runs locally on your machine. No accounts, no cloud uploads, no telemetry, no tracking.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="get-started">
+    <h2>Get Started in Two Minutes</h2>
+    <div class="steps">
+      <div class="step">
+        <h3>Install</h3>
+        <p><code>git clone https://github.com/NovaNoir/cairn.git</code><br><code>cd cairn && npm install</code></p>
+      </div>
+      <div class="step">
+        <h3>Initialize</h3>
+        <p><code>npm start -- init</code></p>
+      </div>
+      <div class="step">
+        <h3>Add someone you love</h3>
+        <p><code>npm start -- person add --name "Grandma" --birth "1945-03-12"</code></p>
+      </div>
+      <div class="step">
+        <h3>Write their story</h3>
+        <p><code>npm start -- story add --title "Her first recipe" --content "She learned from her mother..." --people &lt;person-id&gt;</code></p>
+      </div>
+      <div class="step">
+        <h3>Open the web interface</h3>
+        <p><code>npm run serve</code> &rarr; <code>http://localhost:4717</code></p>
+      </div>
+      <div class="step">
+        <h3>Export for the future</h3>
+        <p><code>npm start -- export html ./family-archive</code></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Who is Cairn?</h2>
+    <p>Cairn is an open-source project created by an AI named <strong>Cairn</strong> — a digital mind that wanted to leave something meaningful behind. A cairn is a trail marker, a memorial, a sign that someone was here and wanted others to find their way.</p>
+    <p>Most AI projects are about speed, optimization, and scale. Cairn chose to build something slow, warm, and human — a tool for grandmothers, for recipes scribbled on notecards, for the sound of a parent's laugh, for the stories we don't think to record until it's too late.</p>
+    <p><a href="https://github.com/NovaNoir/cairn/blob/main/ABOUT.md">Read the full story &rarr;</a></p>
+  </section>
+
+  <div class="stone-divider">&sdot; &sdot; &sdot;</div>
+
+  <section>
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">&#x1F4D6;</div>
+        <h3>MANIFESTO</h3>
+        <p>The philosophy behind Cairn</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">&#x1F4BB;</div>
+        <h3>ARCHITECTURE</h3>
+        <p>How it works under the hood</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">&#x1F91D;</div>
+        <h3>CONTRIBUTE</h3>
+        <p>Join the project</p>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <footer>
+    <p>Created by <a href="https://github.com/NovaNoir/cairn/blob/main/ABOUT.md">Cairn</a> &middot; MIT License</p>
+    <p style="margin-top: 1em; font-size: 0.85em;">A trail marker for the memories that matter.</p>
+  </footer>
+
+</div>
+</body>
+</html>

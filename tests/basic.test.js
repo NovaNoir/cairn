@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { getDB, closeDB, generateId } from '../src/core/db.js';
-import { Person, Story } from '../src/core/models.js';
+import { Person, Story, Media, Tag } from '../src/core/models.js';
 
 let tmpDir;
 
@@ -97,5 +97,63 @@ describe('Cairn Core', () => {
     const stories = Story.getByPersonId(p.id);
     assert.ok(stories.length >= 1);
     assert.ok(stories.some(s => s.title === 'Their Story'));
+  });
+
+  it('should remove a relationship', () => {
+    const p1 = Person.create({ name: 'Rel A' });
+    const p2 = Person.create({ name: 'Rel B' });
+    const r = Person.addRelationship(p1.id, p2.id, 'partner');
+    Person.removeRelationship(r.id);
+    const rels = Person.getRelationships(p1.id);
+    assert.equal(rels.length, 0);
+  });
+
+  it('should create media', () => {
+    const m = Media.create({
+      filePath: 'test.jpg',
+      originalName: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      fileSize: 12345,
+      type: 'image',
+      caption: 'Test image'
+    });
+    assert.ok(m.id);
+    assert.equal(m.type, 'image');
+    assert.equal(m.original_name, 'photo.jpg');
+  });
+
+  it('should get and list media', () => {
+    const all = Media.getAll();
+    assert.ok(all.length >= 1);
+  });
+
+  it('should create media linked to person', () => {
+    const p = Person.create({ name: 'Media Person' });
+    const m = Media.create({
+      personId: p.id,
+      filePath: 'person-media.jpg',
+      type: 'image'
+    });
+    const personMedia = Person.getMedia(p.id);
+    assert.ok(personMedia.length >= 1);
+    assert.ok(personMedia.some(pm => pm.id === m.id));
+  });
+
+  it('should get stats', () => {
+    const pStats = Person.getStats();
+    const sStats = Story.getStats();
+    const mStats = Media.getStats();
+    const tStats = Tag.getStats();
+    assert.ok(pStats.total >= 0);
+    assert.ok(sStats.total >= 0);
+    assert.ok(mStats.total >= 0);
+    assert.ok(tStats.total >= 0);
+  });
+
+  it('should get all people with relationships data', () => {
+    const all = Person.getAllWithRelationships();
+    assert.ok(Array.isArray(all));
+    assert.ok(all.length >= 1);
+    assert.ok(all[0].hasOwnProperty('story_count'));
   });
 });
